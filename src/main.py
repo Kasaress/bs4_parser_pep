@@ -109,7 +109,7 @@ def latest_versions(session):
         if 'All versions' not in ul.text:
             raise FindLatestVersionException('Ничего не нашлось')
         a_tags = ul.find_all('a')
-        break    
+        break
     results = [('Ссылка на документацию', 'Версия', 'Статус')]
     pattern = r'Python (?P<version>\d\.\d+) \((?P<status>.*)\)'
     for a_tag in a_tags:

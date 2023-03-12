@@ -31,10 +31,17 @@ def pretty_output(results):
     print(table)
 
 
+def default_output(results):
+    """Вывод результата в консоль"""
+    for row in results:
+        print(*row)
+
+
 def control_output(results, cli_args):
     """Определяет формат вывода результатов."""
-    output = cli_args.output
-    if output == "pretty":
+    if cli_args.output == "pretty":
         pretty_output(results)
-    else:
+    elif cli_args.output == "file":
         file_output(results, cli_args)
+    else:
+        default_output(results)
