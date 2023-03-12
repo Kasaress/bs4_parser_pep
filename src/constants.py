@@ -13,4 +13,4 @@ EXPECTED_STATUS = {
     'S': ('Superseded',),
     'W': ('Withdrawn',),
     '': ('Draft', 'Active'),
-} 
+}

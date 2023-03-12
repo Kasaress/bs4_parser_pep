@@ -5,42 +5,45 @@ from logging.handlers import RotatingFileHandler
 from constants import BASE_DIR
 
 LOG_FORMAT = '"%(asctime)s - [%(levelname)s] - %(message)s"'
-DT_FORMAT = '%d.%m.%Y %H:%M:%S'
+DT_FORMAT = "%d.%m.%Y %H:%M:%S"
 
 
 def configure_argument_parser(available_modes):
-    parser = argparse.ArgumentParser(description='Парсер документации Python')
+    """Конфигурирует параметры запуска парсера."""
+    parser = argparse.ArgumentParser(description="Парсер документации Python")
     parser.add_argument(
-        'mode',
+        "mode",
         choices=available_modes,
-        help='Режимы работы парсера'
+        help="Режимы работы парсера"
     )
     parser.add_argument(
-        '-c',
-        '--clear-cache',
-        action='store_true',
-        help='Очистка кеша'
+        "-c",
+        "--clear-cache",
+        action="store_true",
+        help="Очистка кеша"
     )
     parser.add_argument(
-        '-o',
-        '--output',
-        choices=('pretty', 'file'),
-        help='Дополнительные способы вывода данных'
+        "-o",
+        "--output",
+        choices=("pretty", "file"),
+        help="Дополнительные способы вывода данных",
     )
     return parser
 
 
 def configure_logging():
-    log_dir = BASE_DIR / 'log_dir'
+    """Настройки логирования."""
+    log_dir = BASE_DIR / "log_dir"
     log_dir.mkdir(exist_ok=True)
-    # Получение абсолютного пути до файла с логами.
-    log_file = log_dir / 'parser.log'
+    log_file = log_dir / "parser.log"
     rotating_handler = RotatingFileHandler(
-        log_file, maxBytes=10 ** 6, backupCount=5
+        log_file,
+        maxBytes=10**6,
+        backupCount=5
     )
     logging.basicConfig(
         datefmt=DT_FORMAT,
         format=LOG_FORMAT,
         level=logging.INFO,
-        handlers=(rotating_handler, logging.StreamHandler())
-    ) 
+        handlers=(rotating_handler, logging.StreamHandler()),
+    )
