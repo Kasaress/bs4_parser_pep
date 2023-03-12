@@ -1,9 +1,15 @@
 # utils.py
 import logging
 
+from bs4 import BeautifulSoup
 from requests import RequestException
 
 from exceptions import ParserFindTagException
+
+
+def get_soup(response_text):
+    """Возвращает объект soup."""
+    return BeautifulSoup(response_text, 'html.parser')
 
 
 def get_response(session, url):
