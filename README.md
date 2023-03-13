@@ -100,4 +100,5 @@ python main.py <parser> -o file
 ## Автор
 
 Яна Бубнова
+
 Телеграм: <https://t.me/kasares>
