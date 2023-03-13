@@ -1,5 +1,5 @@
 "Ссылка на статью","Заголовок","Редактор, Автор"
-"https://docs.python.org/3/whatsnew/3.11.html","What’s New In Python 3.11¶"," Release 3.11.2  Date March 11, 2023  Editor Pablo Galindo Salgado  "
+"https://docs.python.org/3/whatsnew/3.11.html","What’s New In Python 3.11¶"," Release 3.11.2  Date March 13, 2023  Editor Pablo Galindo Salgado  "
 "https://docs.python.org/3/whatsnew/3.10.html","What’s New In Python 3.10¶"," Editor Pablo Galindo Salgado  "
 "https://docs.python.org/3/whatsnew/3.9.html","What’s New In Python 3.9¶"," Editor Łukasz Langa  "
 "https://docs.python.org/3/whatsnew/3.8.html","What’s New In Python 3.8¶"," Editor Raymond Hettinger  "
@@ -19,3 +19,4 @@
 "https://docs.python.org/3/whatsnew/2.2.html","What’s New in Python 2.2¶"," Author A.M. Kuchling  "
 "https://docs.python.org/3/whatsnew/2.1.html","What’s New in Python 2.1¶"," Author A.M. Kuchling  "
 "https://docs.python.org/3/whatsnew/2.0.html","What’s New in Python 2.0¶"," Author A.M. Kuchling and Moshe Zadka  "
+"https://docs.python.org/3/whatsnew/changelog.html","Changelog¶"," the getargspec function, deprecated since Python 3.0;use inspect.signature() or inspect.getfullargspec() instead.  "

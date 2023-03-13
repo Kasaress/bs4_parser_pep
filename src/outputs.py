@@ -5,12 +5,16 @@ from csv import unix_dialect
 
 from prettytable import PrettyTable
 
-from constants import BASE_DIR, DATETIME_FORMAT, FILE_OUTPUT, PRETTY_OUTPUT
+from constants import (BASE_DIR, DATETIME_FORMAT, DEFAUT_OUTPUT, FILE_OUTPUT,
+                       PRETTY_OUTPUT)
+
+MESSAGE_SUCCESS_SAVE = 'Файл с результатами сохранён: {path}'
 
 
 def file_output(results, cli_args):
     """Вывод результата в csv файл."""
-    results_dir = BASE_DIR / "results" # pytest падает, если использовать константу вместо создания папки
+    # pytest падает, если использовать константу вместо создания папки
+    results_dir = BASE_DIR / "results"
     results_dir.mkdir(exist_ok=True)
     parser_mode = cli_args.mode
     now = dt.datetime.now()
@@ -20,33 +24,31 @@ def file_output(results, cli_args):
     with open(file_path, "w", encoding="utf-8") as f:
         writer = csv.writer(f, dialect=unix_dialect)
         writer.writerows(results)
-    logging.info(f"Файл с результатами был сохранён: {file_path}")
+    logging.info(MESSAGE_SUCCESS_SAVE.format(path=file_path))
 
 
-def pretty_output(results):
+def pretty_output(results, cli_args=None):
     """Вывод результа в консоль в виде таблицы."""
-    # import sys
-    # sys.setrecursionlimit(100000)
-    try:
-        table = PrettyTable()
-        table.field_names = results[0]
-        table.align = "l"
-        table.add_rows(results[1:])
-        print(table)
-    except Exception as e:
-        print(e)
+    table = PrettyTable()
+    table.field_names = results[0]
+    table.align = "l"
+    table.add_rows(results[1:])
+    print(table)
 
-def default_output(results):
+
+def default_output(results, cli_args=None):
     """Вывод результата в консоль"""
     for row in results:
         print(*row)
 
 
+OUTPUT_FORMAT = {
+    PRETTY_OUTPUT: pretty_output,
+    FILE_OUTPUT: file_output,
+    DEFAUT_OUTPUT: default_output
+}
+
+
 def control_output(results, cli_args):
     """Определяет формат вывода результатов."""
-    if cli_args.output == PRETTY_OUTPUT:
-        pretty_output(results)
-    elif cli_args.output == FILE_OUTPUT:
-        file_output(results, cli_args)
-    else:
-        default_output(results)
+    OUTPUT_FORMAT.get(cli_args.output)(results, cli_args)

@@ -1,4 +1,3 @@
-# main.py
 import logging
 import re
 from collections import defaultdict
@@ -13,19 +12,25 @@ from exceptions import FindLatestVersionException
 from outputs import control_output
 from utils import find_tag, get_response, get_soup
 
+MESSAGE_UNEXPECTED_STATUS = ('\nНесовпадающие статусы:'
+                             '\n{link}\nСтатус в карточке: {pep_status}'
+                             '\nОжидаемые статусы: {preview_status}\n')
+MESSAGE_BROKEN_URL = 'Адрес {link} не вернул ожидаемый ответ'
+MESSAGE_SUCCESS_SAVE = 'Архив был загружен и сохранён: {path}'
+MESSAGE_START = 'Парсер запущен!'
+MESSAGE_FINISH = 'Парсер завершил работу.'
+MESSAGE_ARGS = 'Аргументы командной строки: {args}'
+MESSAGE_ERROR = 'Во время исполнения скрипта произошла ошибка: {error}'
 
-MESSAGE_UNEXPECTED_STATUS = '\nНесовпадающие статусы:\n{link}\nСтатус в карточке: {pep_status}\nОжидаемые статусы: {preview_status}\n'
-MESSAGE_BROKEN_URL = 'Адрес {version_link} не отвечает'
 
 def pep(session):
     """Парсинг статусов PEP."""
     response = get_response(session, PEP_URL)
     if response is None:
+        logging.error(MESSAGE_BROKEN_URL.format(link=PEP_URL))
         return
     soup = get_soup(response.text)
-    main_section = find_tag(soup, 'section', attrs={'id': 'numerical-index'})
-    table = find_tag(main_section, 'tbody')
-    rows = table.find_all('tr')
+    rows = soup.select('#numerical-index tbody tr')
     statuses = defaultdict(int)
     for row in tqdm(rows):
         status_tag, number_tag, *_ = row.find_all('td')
@@ -41,10 +46,17 @@ def pep(session):
             )
         response = get_response(session, link)
         if response is None:
+            logging.error(MESSAGE_BROKEN_URL.format(link=link))
             return
         soup = get_soup(response.text)
-        table = find_tag(soup, 'dl', attrs={'class': 'rfc2822 field-list simple'})
-        pep_status =  table.find(string='Status').parent.find_next_sibling('dd').string
+        table = find_tag(
+            soup,
+            'dl',
+            attrs={'class': 'rfc2822 field-list simple'}
+        )
+        pep_status = str(
+            table.find(string='Status').parent.find_next_sibling('dd').string
+        )
         statuses[pep_status] += 1
     for status in statuses:
         if status not in preview_status:
@@ -59,7 +71,7 @@ def pep(session):
         ('Статус', 'Количество'),
         *statuses.items(),
         ('Всего', sum(statuses.values())),
-    ] 
+    ]
 
 
 def whats_new(session):
@@ -67,20 +79,18 @@ def whats_new(session):
     whats_new_url = urljoin(MAIN_DOC_URL, 'whatsnew/')
     response = get_response(session, whats_new_url)
     if response is None:
+        logging.error(MESSAGE_BROKEN_URL.format(link=whats_new_url))
         return
     soup = get_soup(response.text)
-    main_div = find_tag(soup, 'section', attrs={'id': 'what-s-new-in-python'})
-    div_with_ul = find_tag(main_div, 'div', attrs={'class': 'toctree-wrapper'})
-    sections_by_python = div_with_ul.find_all(
-        'li',
-        attrs={'class': 'toctree-l1'}
+    sections_by_python = soup.select(
+        '#what-s-new-in-python div.toctree-wrapper li.toctree-l1'
     )
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
     for section in tqdm(sections_by_python):
         version_link = urljoin(whats_new_url, find_tag(section, 'a')['href'])
         response = get_response(session, version_link)
         if response is None:
-            logging.error(MESSAGE_BROKEN_URL.format(version_link=version_link))
+            logging.error(MESSAGE_BROKEN_URL.format(link=version_link))
             continue
         soup = get_soup(response.text)
         results.append(
@@ -97,6 +107,7 @@ def latest_versions(session):
     """Парсинг последней версии документации."""
     response = get_response(session, MAIN_DOC_URL)
     if response is None:
+        logging.error(MESSAGE_BROKEN_URL.format(link=MAIN_DOC_URL))
         return
     soup = get_soup(response.text)
     sidebar = find_tag(soup, 'div', attrs={'class': 'sphinxsidebarwrapper'})
@@ -125,25 +136,22 @@ def download(session):
     downloads_url = urljoin(MAIN_DOC_URL, 'download.html')
     response = get_response(session, downloads_url)
     if response is None:
+        logging.error(MESSAGE_BROKEN_URL.format(link=downloads_url))
         return
     soup = get_soup(response.text)
-    main_tag = find_tag(soup, 'div', {'role': 'main'})
-    table_tag = find_tag(main_tag, 'table', {'class': 'docutils'})
-    pdf_a4_tag = find_tag(
-        table_tag,
-        'a',
-        {'href': re.compile(r'.+pdf-a4\.zip$')}
-    )
-    pdf_a4_link = pdf_a4_tag['href']
+    pdf_a4_link = soup.select_one(
+        'table.docutils a[href$="pdf-a4.zip"]'
+    )['href']
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
-    downloads_dir = BASE_DIR / 'downloads' # pytest падает, если использовать константу вместо создания папки
+    #  pytest падает, если использовать константу вместо создания папки
+    downloads_dir = BASE_DIR / 'downloads'
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
     response = session.get(archive_url)
     with open(archive_path, 'wb') as file:
         file.write(response.content)
-    logging.info(f'Архив был загружен и сохранён: {archive_path}')
+    logging.info(MESSAGE_SUCCESS_SAVE.format(path=archive_path))
 
 
 MODE_TO_FUNCTION = {
@@ -156,18 +164,21 @@ MODE_TO_FUNCTION = {
 
 def main():
     configure_logging()
-    logging.info('Парсер запущен!')
+    logging.info(MESSAGE_START)
     arg_parser = configure_argument_parser(MODE_TO_FUNCTION.keys())
     args = arg_parser.parse_args()
-    logging.info(f'Аргументы командной строки: {args}')
-    session = requests_cache.CachedSession()
-    if args.clear_cache:
-        session.cache.clear()
-    parser_mode = args.mode
-    results = MODE_TO_FUNCTION[parser_mode](session)
-    if results is not None:
-        control_output(results, args)
-    logging.info('Парсер завершил работу.')
+    logging.info(MESSAGE_ARGS.format(args=args))
+    try:
+        session = requests_cache.CachedSession()
+        if args.clear_cache:
+            session.cache.clear()
+        parser_mode = args.mode
+        results = MODE_TO_FUNCTION[parser_mode](session)
+        if results is not None:
+            control_output(results, args)
+    except Exception as error:
+        logging.exception(MESSAGE_ERROR.format(error=error))
+    logging.info(MESSAGE_FINISH)
 
 
 if __name__ == '__main__':

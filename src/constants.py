@@ -27,3 +27,4 @@ EXPECTED_STATUS = {
 }
 PRETTY_OUTPUT = 'pretty'
 FILE_OUTPUT = 'file'
+DEFAUT_OUTPUT = None
