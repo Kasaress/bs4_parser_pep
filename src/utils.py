@@ -7,20 +7,20 @@ MESSAGE_BROKEN_URL = 'Адрес {link} не вернул ожидаемый о�
 ERROR_MESSAGE = 'Не найден тег {tag} {attrs}'
 
 
-def get_soup(response_text):
+def get_soup(session, url, features='html.parser'):
     """Возвращает объект soup."""
-    return BeautifulSoup(response_text, 'html.parser')
+    return BeautifulSoup(get_response(session, url).text, features)
 
 
-def get_response(session, url):
+def get_response(session, url, encoding="utf-8"):
     """Делает запрос, возвращает ответ
        или перехватывает ошибку."""
     try:
         response = session.get(url)
-        response.encoding = "utf-8"
+        response.encoding = encoding
         return response
     except RequestException:
-        raise RequestException(MESSAGE_BROKEN_URL.format(link=url))
+        raise ConnectionError(MESSAGE_BROKEN_URL.format(link=url))
 
 
 def find_tag(soup, tag, attrs=None):

@@ -3,13 +3,14 @@ from pathlib import Path
 # urls
 MAIN_DOC_URL = 'https://docs.python.org/3/'
 PEP_URL = 'https://peps.python.org/'
+DOWNLOADS_URL = 'download.html'
 
 # dirs and files
 BASE_DIR = Path(__file__).parent
 LOG_DIR = BASE_DIR / "log_dir"
 LOG_FILE = LOG_DIR / "parser.log"
-# DOWNLOADS_DIR = BASE_DIR / 'downloads'
-# RESULTS_DIR = BASE_DIR / "results"
+DOWNLOADS_DIR = 'downloads'
+RESULTS_DIR = "results"
 
 # constants
 LOG_FORMAT = '"%(asctime)s - [%(levelname)s] - %(message)s"'

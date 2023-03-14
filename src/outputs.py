@@ -5,16 +5,17 @@ from csv import unix_dialect
 
 from prettytable import PrettyTable
 
-from constants import (BASE_DIR, DATETIME_FORMAT, DEFAUT_OUTPUT, FILE_OUTPUT,
-                       PRETTY_OUTPUT)
+from constants import (
+    BASE_DIR, DATETIME_FORMAT, DEFAUT_OUTPUT, FILE_OUTPUT,
+    PRETTY_OUTPUT, RESULTS_DIR
+)
 
 MESSAGE_SUCCESS_SAVE = 'Файл с результатами сохранён: {path}'
 
 
 def file_output(results, cli_args):
     """Вывод результата в csv файл."""
-    # pytest падает, если использовать константу вместо создания папки
-    results_dir = BASE_DIR / "results"
+    results_dir = BASE_DIR / RESULTS_DIR
     results_dir.mkdir(exist_ok=True)
     parser_mode = cli_args.mode
     now = dt.datetime.now()
@@ -22,8 +23,7 @@ def file_output(results, cli_args):
     file_name = f"{parser_mode}_{now_formatted}.csv"
     file_path = results_dir / file_name
     with open(file_path, "w", encoding="utf-8") as f:
-        writer = csv.writer(f, dialect=unix_dialect)
-        writer.writerows(results)
+        csv.writer(f, dialect=unix_dialect).writerows(results)
     logging.info(MESSAGE_SUCCESS_SAVE.format(path=file_path))
 
 

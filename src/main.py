@@ -7,29 +7,27 @@ import requests_cache
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
-from constants import BASE_DIR, EXPECTED_STATUS, MAIN_DOC_URL, PEP_URL
+from constants import BASE_DIR, EXPECTED_STATUS, MAIN_DOC_URL, PEP_URL, DOWNLOADS_DIR, DOWNLOADS_URL
 from exceptions import FindLatestVersionException
 from outputs import control_output
-from utils import find_tag, get_response, get_soup
+from utils import find_tag, get_soup
 
-MESSAGE_UNEXPECTED_STATUS = ('\nНесовпадающие статусы:'
-                             '\n{link}\nСтатус в карточке: {pep_status}'
-                             '\nОжидаемые статусы: {preview_status}\n')
-MESSAGE_BROKEN_URL = 'Адрес {link} не вернул ожидаемый ответ'
-MESSAGE_SUCCESS_SAVE = 'Архив был загружен и сохранён: {path}'
-MESSAGE_START = 'Парсер запущен!'
-MESSAGE_FINISH = 'Парсер завершил работу.'
-MESSAGE_ARGS = 'Аргументы командной строки: {args}'
-MESSAGE_ERROR = 'Во время исполнения скрипта произошла ошибка: {error}'
+UNEXPECTED_STATUS = (
+    '\nНесовпадающие статусы:'
+    '\n{link}\nСтатус в карточке: {pep_status}'
+    '\nОжидаемые статусы: {preview_status}\n'
+)
+BROKEN_URL = 'Адрес {link} не вернул ожидаемый ответ'
+SUCCESS_SAVE = 'Архив был загружен и сохранён: {path}'
+START = 'Парсер запущен!'
+FINISH = 'Парсер завершил работу.'
+ARGS = 'Аргументы командной строки: {args}'
+ERROR = 'Во время исполнения скрипта произошла ошибка: {error}'
 
 
 def pep(session):
     """Парсинг статусов PEP."""
-    response = get_response(session, PEP_URL)
-    if response is None:
-        logging.error(MESSAGE_BROKEN_URL.format(link=PEP_URL))
-        return
-    soup = get_soup(response.text)
+    soup = get_soup(session, PEP_URL)
     rows = soup.select('#numerical-index tbody tr')
     statuses = defaultdict(int)
     for row in tqdm(rows):
@@ -44,11 +42,7 @@ def pep(session):
                 'a',
                 attrs={'class': 'pep reference internal'})['href']
             )
-        response = get_response(session, link)
-        if response is None:
-            logging.error(MESSAGE_BROKEN_URL.format(link=link))
-            return
-        soup = get_soup(response.text)
+        soup = get_soup(session, link)
         table = find_tag(
             soup,
             'dl',
@@ -61,12 +55,12 @@ def pep(session):
     for status in statuses:
         if status not in preview_status:
             logging.warning(
-                MESSAGE_UNEXPECTED_STATUS.format(
-                    link=link,
-                    pep_status=pep_status,
-                    preview_status=preview_status
-                    )
+                UNEXPECTED_STATUS.format(
+                                link=link,
+                                pep_status=pep_status,
+                                preview_status=preview_status
                 )
+            )
     return [
         ('Статус', 'Количество'),
         *statuses.items(),
@@ -77,22 +71,15 @@ def pep(session):
 def whats_new(session):
     """Парсинг обновлений документации."""
     whats_new_url = urljoin(MAIN_DOC_URL, 'whatsnew/')
-    response = get_response(session, whats_new_url)
-    if response is None:
-        logging.error(MESSAGE_BROKEN_URL.format(link=whats_new_url))
-        return
-    soup = get_soup(response.text)
-    sections_by_python = soup.select(
-        '#what-s-new-in-python div.toctree-wrapper li.toctree-l1'
-    )
+    soup = get_soup(session, whats_new_url)
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
-    for section in tqdm(sections_by_python):
+    for section in tqdm(
+        soup.select(
+            '#what-s-new-in-python div.toctree-wrapper li.toctree-l1'
+            )
+        ):
         version_link = urljoin(whats_new_url, find_tag(section, 'a')['href'])
-        response = get_response(session, version_link)
-        if response is None:
-            logging.error(MESSAGE_BROKEN_URL.format(link=version_link))
-            continue
-        soup = get_soup(response.text)
+        soup = get_soup(session, version_link)
         results.append(
             (
                 version_link,
@@ -105,11 +92,7 @@ def whats_new(session):
 
 def latest_versions(session):
     """Парсинг последней версии документации."""
-    response = get_response(session, MAIN_DOC_URL)
-    if response is None:
-        logging.error(MESSAGE_BROKEN_URL.format(link=MAIN_DOC_URL))
-        return
-    soup = get_soup(response.text)
+    soup = get_soup(session, MAIN_DOC_URL)
     sidebar = find_tag(soup, 'div', attrs={'class': 'sphinxsidebarwrapper'})
     ul_tags = sidebar.find_all('ul')
     for ul in ul_tags:
@@ -133,25 +116,20 @@ def latest_versions(session):
 
 def download(session):
     """Загрузка документации в виде архива."""
-    downloads_url = urljoin(MAIN_DOC_URL, 'download.html')
-    response = get_response(session, downloads_url)
-    if response is None:
-        logging.error(MESSAGE_BROKEN_URL.format(link=downloads_url))
-        return
-    soup = get_soup(response.text)
+    downloads_url = urljoin(MAIN_DOC_URL, DOWNLOADS_URL)
+    soup = get_soup(session, downloads_url)
     pdf_a4_link = soup.select_one(
         'table.docutils a[href$="pdf-a4.zip"]'
     )['href']
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
-    #  pytest падает, если использовать константу вместо создания папки
-    downloads_dir = BASE_DIR / 'downloads'
+    downloads_dir = BASE_DIR / DOWNLOADS_DIR
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
     response = session.get(archive_url)
     with open(archive_path, 'wb') as file:
         file.write(response.content)
-    logging.info(MESSAGE_SUCCESS_SAVE.format(path=archive_path))
+    logging.info(SUCCESS_SAVE.format(path=archive_path))
 
 
 MODE_TO_FUNCTION = {
@@ -164,10 +142,10 @@ MODE_TO_FUNCTION = {
 
 def main():
     configure_logging()
-    logging.info(MESSAGE_START)
+    logging.info(START)
     arg_parser = configure_argument_parser(MODE_TO_FUNCTION.keys())
     args = arg_parser.parse_args()
-    logging.info(MESSAGE_ARGS.format(args=args))
+    logging.info(ARGS.format(args=args))
     try:
         session = requests_cache.CachedSession()
         if args.clear_cache:
@@ -177,8 +155,8 @@ def main():
         if results is not None:
             control_output(results, args)
     except Exception as error:
-        logging.exception(MESSAGE_ERROR.format(error=error))
-    logging.info(MESSAGE_FINISH)
+        logging.exception(ERROR.format(error=error))
+    logging.info(FINISH)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,10 @@
 # Проект парсинга pep
 
-Парсинг информации с сайтов <https://docs.python.org/3/> и <https://peps.python.org/>
+Парсинг информации с сайтов:
+
+ [Python](https://docs.python.org/3/ "https://docs.python.org/3/")
+
+ [Peps](https://peps.python.org/ "https://peps.python.org/")
 
 ## Предварительная настройка
 
@@ -101,4 +105,4 @@ python main.py <parser> -o file
 
 Яна Бубнова
 
-Телеграм: <https://t.me/kasares>
+[Телеграм](https://t.me/kasares "Напишите мне :)")
