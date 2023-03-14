@@ -72,7 +72,7 @@ def pep(session):
                     preview_status=preview_status
                 )
             )
-    [logging.warning(message) for message in logs]
+    list(map(logging.warning, logs))
     return [
         ('Статус', 'Количество'),
         *statuses.items(),
@@ -85,24 +85,23 @@ def whats_new(session):
     whats_new_url = urljoin(MAIN_DOC_URL, WHATSNEW_URL)
     logs = []
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
-    for link in tqdm(
-        [tag['href'] for tag in
-            get_soup(
-                session, whats_new_url
-            ).select(
-                '#what-s-new-in-python div.toctree-wrapper li.toctree-l1 > a'
-        )]
+    for tag in tqdm(
+        get_soup(
+            session, whats_new_url
+        ).select(
+            '#what-s-new-in-python div.toctree-wrapper li.toctree-l1 > a'
+        )
     ):
         try:
-            soup = get_soup(session, urljoin(whats_new_url, link))
+            soup = get_soup(session, urljoin(whats_new_url, tag['href']))
             results.append((
-                urljoin(whats_new_url, link),
+                urljoin(whats_new_url, tag['href']),
                 find_tag(soup, 'h1').text,
                 find_tag(soup, 'dl').text.replace('\n', ' ')
             ))
         except ConnectionError:
-            logs.append(BROKEN_URL.format(link=link))
-    [logging.warning(message) for message in logs]
+            logs.append(BROKEN_URL.format(link=tag['href']))
+    list(map(logging.warning, logs))
     return results
 
 
