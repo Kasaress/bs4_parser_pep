@@ -7,7 +7,10 @@ import requests_cache
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
-from constants import BASE_DIR, EXPECTED_STATUS, MAIN_DOC_URL, PEP_URL, DOWNLOADS_DIR, DOWNLOADS_URL
+from constants import (
+    BASE_DIR, EXPECTED_STATUS, MAIN_DOC_URL,
+    PEP_URL, DOWNLOADS_DIR, DOWNLOADS_URL
+)
 from exceptions import FindLatestVersionException
 from outputs import control_output
 from utils import find_tag, get_soup
@@ -23,6 +26,7 @@ START = 'Парсер запущен!'
 FINISH = 'Парсер завершил работу.'
 ARGS = 'Аргументы командной строки: {args}'
 ERROR = 'Во время исполнения скрипта произошла ошибка: {error}'
+NOT_FOUND = 'Ничего не нашлось'
 
 
 def pep(session):
@@ -30,6 +34,7 @@ def pep(session):
     soup = get_soup(session, PEP_URL)
     rows = soup.select('#numerical-index tbody tr')
     statuses = defaultdict(int)
+    broken_link = {}
     for row in tqdm(rows):
         status_tag, number_tag, *_ = row.find_all('td')
         status = status_tag.text[1:]
@@ -42,7 +47,11 @@ def pep(session):
                 'a',
                 attrs={'class': 'pep reference internal'})['href']
             )
-        soup = get_soup(session, link)
+        try:
+            soup = get_soup(session, link)
+        except ConnectionError:
+            broken_link[link] = BROKEN_URL.format(link=link)
+            continue
         table = find_tag(
             soup,
             'dl',
@@ -52,15 +61,14 @@ def pep(session):
             table.find(string='Status').parent.find_next_sibling('dd').string
         )
         statuses[pep_status] += 1
-    for status in statuses:
-        if status not in preview_status:
-            logging.warning(
-                UNEXPECTED_STATUS.format(
+        if pep_status not in preview_status:
+            broken_link[link] = UNEXPECTED_STATUS.format(
                                 link=link,
                                 pep_status=pep_status,
                                 preview_status=preview_status
-                )
-            )
+                            )
+    for message in broken_link.values():
+        logging.warning(message)
     return [
         ('Статус', 'Количество'),
         *statuses.items(),
@@ -74,10 +82,10 @@ def whats_new(session):
     soup = get_soup(session, whats_new_url)
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
     for section in tqdm(
-        soup.select(
-            '#what-s-new-in-python div.toctree-wrapper li.toctree-l1'
-            )
-        ):
+            soup.select(
+                '#what-s-new-in-python div.toctree-wrapper li.toctree-l1'
+                )
+            ):
         version_link = urljoin(whats_new_url, find_tag(section, 'a')['href'])
         soup = get_soup(session, version_link)
         results.append(
@@ -92,12 +100,13 @@ def whats_new(session):
 
 def latest_versions(session):
     """Парсинг последней версии документации."""
-    soup = get_soup(session, MAIN_DOC_URL)
-    sidebar = find_tag(soup, 'div', attrs={'class': 'sphinxsidebarwrapper'})
-    ul_tags = sidebar.find_all('ul')
-    for ul in ul_tags:
+    for ul in get_soup(
+      session, MAIN_DOC_URL
+    ).select(
+      'div.sphinxsidebarwrapper ul'
+    ):
         if 'All versions' not in ul.text:
-            raise FindLatestVersionException('Ничего не нашлось')
+            raise FindLatestVersionException(NOT_FOUND)
         a_tags = ul.find_all('a')
         break
     results = [('Ссылка на документацию', 'Версия', 'Статус')]
