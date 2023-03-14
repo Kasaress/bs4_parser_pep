@@ -9,7 +9,7 @@ from tqdm import tqdm
 from configs import configure_argument_parser, configure_logging
 from constants import (
     BASE_DIR, EXPECTED_STATUS, MAIN_DOC_URL,
-    PEP_URL, DOWNLOADS_DIR, DOWNLOADS_URL
+    PEP_URL, DOWNLOADS_DIR, DOWNLOADS_URL, WHATSNEW_URL
 )
 from exceptions import FindLatestVersionException
 from outputs import control_output
@@ -31,11 +31,11 @@ NOT_FOUND = 'Ничего не нашлось'
 
 def pep(session):
     """Парсинг статусов PEP."""
-    soup = get_soup(session, PEP_URL)
-    rows = soup.select('#numerical-index tbody tr')
     statuses = defaultdict(int)
-    broken_link = {}
-    for row in tqdm(rows):
+    broken_links = []
+    for row in tqdm(
+                get_soup(session, PEP_URL).select('#numerical-index tbody tr')
+            ):
         status_tag, number_tag, *_ = row.find_all('td')
         status = status_tag.text[1:]
         preview_status = (EXPECTED_STATUS.get(status) if len(status)
@@ -50,7 +50,7 @@ def pep(session):
         try:
             soup = get_soup(session, link)
         except ConnectionError:
-            broken_link[link] = BROKEN_URL.format(link=link)
+            broken_links.append(BROKEN_URL.format(link=link))
             continue
         table = find_tag(
             soup,
@@ -62,13 +62,14 @@ def pep(session):
         )
         statuses[pep_status] += 1
         if pep_status not in preview_status:
-            broken_link[link] = UNEXPECTED_STATUS.format(
-                                link=link,
-                                pep_status=pep_status,
-                                preview_status=preview_status
-                            )
-    for message in broken_link.values():
-        logging.warning(message)
+            broken_links.append(
+                UNEXPECTED_STATUS.format(
+                    link=link,
+                    pep_status=pep_status,
+                    preview_status=preview_status
+                )
+            )
+    map(logging.warning, broken_links)
     return [
         ('Статус', 'Количество'),
         *statuses.items(),
@@ -78,23 +79,26 @@ def pep(session):
 
 def whats_new(session):
     """Парсинг обновлений документации."""
-    whats_new_url = urljoin(MAIN_DOC_URL, 'whatsnew/')
-    soup = get_soup(session, whats_new_url)
+    whats_new_url = urljoin(MAIN_DOC_URL, WHATSNEW_URL)
+    broken_links = []
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
     for section in tqdm(
-            soup.select(
-                '#what-s-new-in-python div.toctree-wrapper li.toctree-l1'
-                )
-            ):
+        get_soup(session, whats_new_url).select(
+                    '#what-s-new-in-python div.toctree-wrapper li.toctree-l1'
+                    )
+                ):
         version_link = urljoin(whats_new_url, find_tag(section, 'a')['href'])
-        soup = get_soup(session, version_link)
-        results.append(
-            (
+        try:
+            soup = get_soup(session, version_link)
+            results.append((
                 version_link,
                 find_tag(soup, 'h1').text,
                 find_tag(soup, 'dl').text.replace('\n', ' ')
-                )
-        )
+            ))
+        except ConnectionError:
+            broken_links.append(BROKEN_URL.format(link=version_link))
+            continue
+    map(logging.warning, broken_links)
     return results
 
 

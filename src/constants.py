@@ -4,6 +4,7 @@ from pathlib import Path
 MAIN_DOC_URL = 'https://docs.python.org/3/'
 PEP_URL = 'https://peps.python.org/'
 DOWNLOADS_URL = 'download.html'
+WHATSNEW_URL = 'whatsnew/'
 
 # dirs and files
 BASE_DIR = Path(__file__).parent
